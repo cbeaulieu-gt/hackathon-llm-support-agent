@@ -62,6 +62,25 @@ def build_index(corpus_root: Path) -> dict:
     return {"paths": valid_paths, "bm25": bm25, "domains": domains}
 
 
+def _strip_frontmatter(text: str) -> str:
+    """Remove leading YAML frontmatter (``---\\n...\\n---``) if present.
+
+    Pre-mortem fix (CHARGE 1): the corpus docs all begin with a YAML
+    frontmatter block followed by title + breadcrumb metadata. A naive
+    ``text[:500]`` returned ONLY metadata — the LLM never saw body content.
+    """
+    if text.startswith("---\n") or text.startswith("---\r\n"):
+        end = text.find("\n---", 4)
+        if end > 0:
+            text = text[end + 4 :].lstrip()
+    return text
+
+
+# Snippet length: post-strip-frontmatter, body content needs ~3000 chars
+# to cover the URL/policy/answer for a typical doc.
+_SNIPPET_CHARS = 3000
+
+
 def retrieve(
     query: str,
     index: dict,
@@ -96,7 +115,8 @@ def retrieve(
     for score, path, _dom in ranked[:top_k]:
         if score < threshold:
             break
-        snippet = path.read_text(encoding="utf-8", errors="replace")[:500]
+        raw = path.read_text(encoding="utf-8", errors="replace")
+        snippet = _strip_frontmatter(raw)[:_SNIPPET_CHARS]
         hits.append(
             {
                 "path": str(path).replace("\\", "/"),

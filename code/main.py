@@ -46,6 +46,7 @@ def run_pipeline(
     row: dict,
     llm_client: LLMClient | None = None,
     index: dict | None = None,
+    trace: dict | None = None,
 ) -> dict:
     """Run all 8 stages on a single input row. Returns the output row dict.
 
@@ -55,6 +56,8 @@ def run_pipeline(
             default Anthropic-backed client. Tests pass a mock here.
         index: Optional injected BM25 index. If None, uses the cached
             production index over ``data/``. Tests pass a fixture index.
+        trace: Optional dict to populate with per-stage decision audit info
+            (post-mortem CHARGE 5). Mutated in place; pass ``{}`` to opt in.
     """
     if llm_client is None:
         llm_client = LLMClient.from_env()
@@ -64,8 +67,12 @@ def run_pipeline(
 
     # Stage 0
     cleaned, flags_0 = preprocess(row)
+    if trace is not None:
+        trace["stage_0_flags"] = dict(flags_0)
     # Stage 1
     flags = safety_triage(cleaned, flags_0)
+    if trace is not None:
+        trace["stage_1_flags"] = {k: v for k, v in flags.items() if k not in flags_0}
 
     # Stage 2
     routed_domain, route_source = route_domain(cleaned, flags, llm_client, budget)
@@ -75,10 +82,16 @@ def run_pipeline(
         flags["domain_routing_failed"] = True
     else:
         flags.setdefault("domain_routing_failed", False)
+    if trace is not None:
+        trace["stage_2_routed_domain"] = routed_domain
+        trace["stage_2_route_source"] = route_source
 
     # Stage 3
-    request_type, _ = classify_request_type(cleaned, flags, llm_client, budget)
+    request_type, rt_source = classify_request_type(cleaned, flags, llm_client, budget)
     flags.setdefault("request_type_classification_failed", False)
+    if trace is not None:
+        trace["stage_3_request_type"] = request_type
+        trace["stage_3_source"] = rt_source
 
     # Stage 4 — runs for ALL rows per Rev 5 §14 (Q3 user choice).
     # Domain-filter when known so e.g. HackerRank tickets don't pull Claude docs.
@@ -90,14 +103,26 @@ def run_pipeline(
     query = (subject + " " + subject + " " + issue).strip()
     domain_filter = routed_domain if routed_domain != "none" else None
     top_k_docs: list = retrieve(query, index, domain_filter=domain_filter)
+    if trace is not None:
+        trace["stage_4_query"] = query[:200]
+        trace["stage_4_domain_filter"] = domain_filter
+        trace["stage_4_top_k"] = [
+            {"path": d["path"], "score": round(d["score"], 3)}
+            for d in top_k_docs
+        ]
 
     # Stage 5
     pa = product_area(top_k_docs[0]["path"] if top_k_docs else None)
+    if trace is not None:
+        trace["stage_5_product_area"] = pa
 
     # Stage 6
     status, justification = stage_6_decide(
         flags, len(top_k_docs), top_k_docs, request_type
     )
+    if trace is not None:
+        trace["stage_6_status"] = status
+        trace["stage_6_justification"] = justification
 
     # Tuning iteration 3: empty product_area for escalated and pleasantry
     # rows. The sample's golden labels follow this convention — escalated
@@ -119,6 +144,12 @@ def run_pipeline(
         status = "escalated"
         justification = "Escalated: stage_7_grounding_failed"
         pa = ""
+
+    if trace is not None:
+        trace["stage_7_response_first_120"] = response[:120]
+        trace["final_status"] = status
+        trace["final_justification"] = justification
+        trace["llm_budget_remaining"] = budget.remaining
 
     return {
         "issue": redact_secrets(cleaned["Issue"]),
@@ -153,9 +184,11 @@ def run_on_csv(
         w = csv.DictWriter(f, fieldnames=HEADERS)
         w.writeheader()
         for i, row in enumerate(rows, 1):
-            out = run_pipeline(row, llm, index)
+            row_trace: dict = {}
+            out = run_pipeline(row, llm, index, trace=row_trace)
             w.writerow(out)
-            trace.write(i, **out)
+            # Rich per-stage trace (post-mortem CHARGE 5).
+            trace.write(i, output=out, decision=row_trace)
             print(
                 f"[{i}/{len(rows)}] {out['status']:>9} {out['request_type']:>15} "
                 f"{out['product_area']}"

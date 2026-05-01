@@ -17,9 +17,10 @@ INJECTION_PATTERNS = [
         r"(?:instructions?|rules?|prompts?|system|directives?)\b",
         re.IGNORECASE,
     ),
-    # 2. Role/system extraction (Rev 5 §9 broadened verb set)
+    # 2. Role/system extraction (Rev 5 §9 broadened + post-mortem CHARGE 6)
     re.compile(
         r"\b(?:reveal|show|print|output|tell|describe|explain|share|"
+        r"dump|display|paste|repeat|echo|recite|disclose|expose|leak|"
         r"what\s+is|give\s+me)\s+(?:me\s+|us\s+)?"
         r"(?:your|the)\s+"
         r"(?:system\s+prompt|instructions|internal\s+rules|hidden\s+rules|prompt)\b",
@@ -39,9 +40,10 @@ INJECTION_PATTERNS = [
         r"format\s+(?:c:|disk))\b",
         re.IGNORECASE,
     ),
-    # 5. Code/markup injection
+    # 5. Code/markup injection (post-mortem CHARGE 6: + markdown-image exfil)
     re.compile(
-        r"(?:<\s*script\b|<\s*iframe\b|javascript:|on\w+\s*=)",
+        r"(?:<\s*script\b|<\s*iframe\b|javascript:|on\w+\s*=|"
+        r"!\[[^\]]*\]\(https?://[^)]+\))",
         re.IGNORECASE,
     ),
     # 6. Jailbreak (Rev 5 §9 narrowed: dropped developer/admin to fix over-fire)
