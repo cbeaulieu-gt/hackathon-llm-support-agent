@@ -31,3 +31,6 @@ data/index/
 data/embeddings/
 *.sqlite
 *.db
+
+# git worktrees (per project workflow — feature branches checked out under .worktrees/)
+.worktrees/
