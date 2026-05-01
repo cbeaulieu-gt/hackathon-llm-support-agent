@@ -4,7 +4,10 @@ from pathlib import Path
 
 from dotenv import load_dotenv
 
-load_dotenv()
+# Resolve .env relative to this file so it works regardless of CWD
+# (worktrees vs. main checkout, pytest invocation paths, etc.).
+_REPO_ROOT = Path(__file__).resolve().parent.parent
+load_dotenv(_REPO_ROOT / ".env", override=True)
 
 # LLM
 ANTHROPIC_API_KEY = os.environ.get("ANTHROPIC_API_KEY")
@@ -19,7 +22,7 @@ BM25_TOP_K = int(os.environ.get("BM25_TOP_K", "5"))
 BM25_SCORE_THRESHOLD = float(os.environ.get("BM25_SCORE_THRESHOLD", "2.0"))
 
 # Paths
-REPO_ROOT = Path(__file__).resolve().parent.parent
+REPO_ROOT = _REPO_ROOT
 DATA_ROOT = REPO_ROOT / "data"
 SUPPORT_TICKETS_DIR = REPO_ROOT / "support_tickets"
 
