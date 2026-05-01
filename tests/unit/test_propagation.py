@@ -4,6 +4,7 @@ Spec: docs/PLAN.md Rev 5 §13 + Rev 5.1 §1 (run_pipeline DI signature fix —
 ``llm_client=`` kwarg, not the old ``mock_llm=``).
 """
 from pathlib import Path
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -117,3 +118,36 @@ def test_secret_redacted_in_output_columns(fix_index):
     )
     blob = " ".join(str(v) for v in out.values())
     assert "cs_live_abc123def456" not in blob
+
+
+def test_stage_3_5_expansion_appended_to_bm25_query(fix_index):
+    """Stage 3.5 expansion keywords must reach Stage 4 via the BM25 query.
+
+    We patch ``code.main.expand_query`` to return a known expansion string,
+    then confirm that string is present in the query captured in the trace.
+    This verifies the wiring without a real LLM call.
+    """
+    EXPANSION = "team member deactivate lock user"
+
+    with patch("code.main.expand_query", return_value=(EXPANSION, {"source": "llm"})):
+        trace: dict = {}
+        run_pipeline(
+            {
+                "Issue": "An employee is leaving, remove their account",
+                "Subject": "Remove employee",
+                "Company": "HackerRank",
+            },
+            llm_client=fake_llm_default(
+                canned={"router": {"domain": "hackerrank", "confidence": 0.9}}
+            ),
+            index=fix_index,
+            trace=trace,
+        )
+
+    # The BM25 query written to the trace must contain the expansion tokens.
+    bm25_query = trace.get("stage_4_query", "")
+    assert EXPANSION in bm25_query, (
+        f"Expected expansion '{EXPANSION}' in BM25 query but got: '{bm25_query}'"
+    )
+    # The trace must also carry the stage_3_5 info dict.
+    assert "stage_3_5_query_expansion" in trace

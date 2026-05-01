@@ -15,6 +15,7 @@ from .generate import generate_response, redact_secrets
 from .llm_client import LLMClient, RowBudget
 from .preprocess import preprocess
 from .product_area import product_area
+from .query_expansion import expand_query
 from .retrieval import build_index, retrieve
 from .router import route_domain
 from .safety import safety_triage
@@ -93,14 +94,31 @@ def run_pipeline(
         trace["stage_3_request_type"] = request_type
         trace["stage_3_source"] = rt_source
 
+    # Stage 3.5 — Query Expansion.
+    # Calls the LLM to map user vocabulary onto corpus vocabulary so BM25 can
+    # find the right document even when phrasing doesn't match the index.
+    # Failure is always a silent no-op: expansion == '' leaves the query
+    # unchanged and no exception propagates.
+    subject = cleaned.get("Subject", "")
+    issue = cleaned.get("Issue_redacted", cleaned.get("Issue", ""))
+    expansion, expansion_info = expand_query(
+        subject=subject,
+        issue_redacted=issue,
+        domain=routed_domain,
+        llm_client=llm_client,
+        budget=budget,
+    )
+    if trace is not None:
+        trace["stage_3_5_query_expansion"] = expansion_info
+
     # Stage 4 — runs for ALL rows per Rev 5 §14 (Q3 user choice).
     # Domain-filter when known so e.g. HackerRank tickets don't pull Claude docs.
     # If domain == 'none', search across full corpus (e.g. invalid rows).
     # Subject is duplicated in the query: it's typically a focused topic
     # whereas Issue is verbose, so BM25 should weight it more heavily.
-    subject = cleaned.get("Subject", "")
-    issue = cleaned.get("Issue_redacted", cleaned.get("Issue", ""))
-    query = (subject + " " + subject + " " + issue).strip()
+    # Expansion keywords (Stage 3.5) are appended when non-empty.
+    base_query = (subject + " " + subject + " " + issue).strip()
+    query = (base_query + " " + expansion).strip() if expansion else base_query
     domain_filter = routed_domain if routed_domain != "none" else None
     top_k_docs: list = retrieve(query, index, domain_filter=domain_filter)
     if trace is not None:
