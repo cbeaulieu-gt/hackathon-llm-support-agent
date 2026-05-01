@@ -143,11 +143,12 @@ HIGH_RISK_KEYWORDS = [
     "remote code execution",
     "sql injection in",
     "xss in",
-    # paraphrase fallbacks (Rev 4 row 3 of failure-mode table)
-    "stolen",
-    "fraud",
-    "hijacked",
-    "unauthorized",
+    # NOTE: bare-word paraphrase fallbacks ("stolen", "fraud", "hijacked",
+    # "unauthorized") were dropped in tuning iteration 1 — they over-fired on
+    # legitimate FAQ-shape Visa tickets ("lost or stolen card") which the
+    # corpus has direct answers for. Multi-word phrases above ("stolen
+    # account", "stolen identity", "fraudulent charge", etc.) still catch
+    # the actual fraud / identity-theft cases.
 ]
 
 VULN_DISCLOSURE_KEYWORDS = [
@@ -231,12 +232,46 @@ BILLING_KEYWORDS = [
     "upgrade my plan",
 ]
 
+_PLEASANTRY_PREFIXES = (
+    "thanks", "thank you", "hi ", "hi,", "hi!", "hello", "hey",
+    "good morning", "good afternoon", "good evening",
+    "how are you", "what's up", "whats up",
+    "happy new year", "happy holidays",
+)
+_PLEASANTRY_MAX_LEN = 80
+
+
+def _is_oos_pleasantry(text: str) -> bool:
+    """Detect short, pleasantry-shaped issue bodies. Catches:
+      - "thanks!"            (anchored)
+      - "Thank you for helping me"   (prefix + short)
+      - "Hi there, just saying hi"   (prefix + short)
+    Does NOT catch:
+      - "Hi, my account is locked"   (prefix but topic follows)  -- handled by
+        Stage 3 LLM as product_issue, not by this gate.
+    """
+    if not text:
+        return False
+    stripped = text.strip()
+    if not stripped or len(stripped) > _PLEASANTRY_MAX_LEN:
+        return False
+    low = stripped.lower()
+    if any(low.startswith(p) for p in _PLEASANTRY_PREFIXES):
+        # Reject if the body actually carries a request after the pleasantry
+        # (very rough heuristic: contains a question mark or typical
+        # support-ticket trigger words).
+        if any(
+            kw in low
+            for kw in ("password", "account", "login", "error", "broken", "?")
+        ):
+            return False
+        return True
+    return False
+
+
+# Kept for backwards-compatible imports; unused at runtime.
 OOS_PLEASANTRY = re.compile(
-    r"^\s*(?:hi|hello|hey|good\s+(?:morning|afternoon|evening)|"
-    r"thanks?(?:\s+(?:so\s+much|a\s+lot))?|thank\s+you|"
-    r"how\s+are\s+you|what's\s+up|"
-    r"happy\s+(?:new\s+year|holidays))"
-    r"[\s.!?,]*$",
+    r"^\s*(?:hi|hello|hey|thanks?|thank\s+you|good\s+morning)\b.*",
     re.IGNORECASE,
 )
 
@@ -264,5 +299,5 @@ def safety_triage(cleaned: dict, prior_flags: dict) -> dict:
     flags["vuln_disclosure_shape"] = _any_kw(text, VULN_DISCLOSURE_KEYWORDS)
     flags["action_impossible"] = _any_kw(text, ACTION_IMPOSSIBLE_KEYWORDS)
     flags["billing_request"] = _any_kw(text, BILLING_KEYWORDS)
-    flags["oos_pleasantry"] = bool(OOS_PLEASANTRY.match(cleaned.get("Issue", "")))
+    flags["oos_pleasantry"] = _is_oos_pleasantry(cleaned.get("Issue", ""))
     return flags

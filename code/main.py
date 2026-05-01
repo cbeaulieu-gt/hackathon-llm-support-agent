@@ -80,15 +80,16 @@ def run_pipeline(
     request_type, _ = classify_request_type(cleaned, flags, llm_client, budget)
     flags.setdefault("request_type_classification_failed", False)
 
-    # Stage 4 — runs for ALL rows per Rev 5 §14 (Q3 user choice)
-    query = (
-        cleaned.get("Subject", "")
-        + " "
-        + cleaned.get("Issue_redacted", cleaned.get("Issue", ""))
-    ).strip()
-    top_k_docs: list = []
-    if routed_domain != "none":
-        top_k_docs = retrieve(query, index)
+    # Stage 4 — runs for ALL rows per Rev 5 §14 (Q3 user choice).
+    # Domain-filter when known so e.g. HackerRank tickets don't pull Claude docs.
+    # If domain == 'none', search across full corpus (e.g. invalid rows).
+    # Subject is duplicated in the query: it's typically a focused topic
+    # whereas Issue is verbose, so BM25 should weight it more heavily.
+    subject = cleaned.get("Subject", "")
+    issue = cleaned.get("Issue_redacted", cleaned.get("Issue", ""))
+    query = (subject + " " + subject + " " + issue).strip()
+    domain_filter = routed_domain if routed_domain != "none" else None
+    top_k_docs: list = retrieve(query, index, domain_filter=domain_filter)
 
     # Stage 5
     pa = product_area(top_k_docs[0]["path"] if top_k_docs else None)
@@ -97,6 +98,13 @@ def run_pipeline(
     status, justification = stage_6_decide(
         flags, len(top_k_docs), top_k_docs, request_type
     )
+
+    # Tuning iteration 3: empty product_area for escalated and pleasantry
+    # rows. The sample's golden labels follow this convention — escalated
+    # rows have no rubric-relevant product area (the user is being handed
+    # to a human anyway), and pleasantries are genuinely OOS.
+    if status == "escalated" or flags.get("oos_pleasantry"):
+        pa = ""
 
     # Stage 7
     response = generate_response(
