@@ -129,8 +129,10 @@ def run_pipeline(
             for d in top_k_docs
         ]
 
-    # Stage 5
-    pa = product_area(top_k_docs[0]["path"] if top_k_docs else None)
+    # Stage 5 — pass full top-K list so the low-specificity avoidance
+    # heuristic can scan beyond top-1; also pass domain and request_type so
+    # the invalid+no-domain short-circuit can suppress noise-derived labels.
+    pa = product_area(top_k_docs, routed_domain, request_type=request_type)
     if trace is not None:
         trace["stage_5_product_area"] = pa
 

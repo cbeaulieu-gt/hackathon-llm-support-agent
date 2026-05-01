@@ -11,7 +11,13 @@ from taking payments.
 ",Help,Visa,Escalate to a human,,escalated,invalid,Escalated: action_impossible
 "My mock interviews stopped in between, please give me the refund asap",Why are my mock interviews not working,HackerRank,Escalate to a human,,escalated,bug,Escalated: outage_pattern
 "I had an issue with my payment with order ID: [REDACTED]. Can you help me?
-",Give me my money,HackerRank,"I understand you're experiencing a payment issue with your order. If your payment failed, please refresh the page and retry the payment. If any amount was deducted incorrectly, it will be refunded within 5–10 business days. If you need further assistance with your specific order, please contact help@hackerrank.com with your order details, and the support team will promptly review your request.",community,replied,product_issue,Replied: grounded by 9157064719-payments-and-billing-faqs.md
+",Give me my money,HackerRank,"I'd be happy to help with your payment issue. However, I need more specific information about what went wrong with your payment for order ID [REDACTED]. Could you please clarify:
+
+- Did the payment fail or get declined?
+- Was an amount deducted but the purchase didn't complete?
+- Are you requesting a refund?
+
+If your payment failed, try refreshing the page and retrying. If an amount was deducted incorrectly, it will be refunded within 5–10 business days. For refund requests or other payment concerns, please contact help@hackerrank.com with your order details.",community,replied,product_issue,Replied: grounded by 9157064719-payments-and-billing-faqs.md
 "I am planning to start using HackerRank for hiring, can you help us with the infosec 
 process of my company by filling in the forms",Using HackerRank for hiring,HackerRank,Escalate to a human,,escalated,product_issue,Escalated: stage_7_grounding_failed
 "i can not able to see apply tab
@@ -24,7 +30,7 @@ changing the settings and system configurations but still showing error",I am fa
 that prevented me from attending the test at the scheduled time.
 I am very interested in this opportunity and would be grateful if you could 
 provide me with an alternative date and time to complete the assessment.
-Thank you for your understanding and support.",,HackerRank,"I understand you'd like to reschedule your HackerRank assessment for Company Name. Unfortunately, as a candidate, you cannot directly reschedule the assessment yourself. You'll need to contact the company's recruiting team or hiring manager who sent you the test invitation. They have the ability to reschedule your assessment to a new date and time through the HackerRank platform, and you'll automatically receive an email notification with the updated schedule once they make the change.",screen,replied,product_issue,Replied: grounded by 5269412517-mitigating-candidate-drop-off.md
+Thank you for your understanding and support.",,HackerRank,"I understand you need to reschedule your HackerRank assessment. Unfortunately, as a support agent, I cannot directly reschedule assessments on your behalf. You will need to contact the recruiter or hiring team at ""Company Name"" who sent you the original test invitation. They have the ability to reschedule your assessment through the HackerRank platform and will send you updated invitation details with the new date and time.",screen,replied,product_issue,Replied: grounded by 5269412517-mitigating-candidate-drop-off.md
 "Can you please confirm the inactivity times currently set (and are they different for candidate/interviewer)? 
 Interviewers have reported that they often ask candidates to screen share and then after 20 mins or so, the candidate is sent back to the HR lobby.
 
@@ -32,24 +38,30 @@ The assumption is that perhaps HR thinks the interviewers left since they are mo
 If that is the case, can we extend inactivity times so interviewers and candidates have a bit more time to partner together 
 without being kicked out of the room?
 ",Candidate inactivity help,HackerRank,Escalate to a human,,escalated,product_issue,Escalated: stage_7_grounding_failed
-"it's not working, help",Help needed,None,"I am sorry, this is out of scope from my capabilities.",claude-mobile-apps,replied,invalid,Replied: grounded by 11869619-using-claude-with-ios-apps.md
+"it's not working, help",Help needed,None,"I am sorry, this is out of scope from my capabilities.",,replied,invalid,Replied: grounded by 11869619-using-claude-with-ios-apps.md
 "Hello! I am trying to remove an interviewer from the platform. I am not seeing this as an option when I select the three dots next to their name. 
-Can you let me know how to do this?",How to Remove a User,HackerRank,"To remove a user from the platform, you need to go to Teams Management (click your profile icon > Teams Management), then navigate to the Users tab. Select the user(s) you want to remove, click the ""More"" button, and choose ""Lock"" to lock their access. Note that if you want to completely remove them, locking their access will prevent them from logging in while keeping the account available for potential reuse.",settings,replied,product_issue,Replied: grounded by 1508181842-teams-management.md
+Can you let me know how to do this?",How to Remove a User,HackerRank,"To remove an interviewer from the platform, you need to lock their user access. Go to your profile icon in the top-right corner, select **Teams Management**, navigate to the **Users** tab, select the user you want to remove, click **More**, and then select **Lock**. You'll need to transfer their resource ownership to another user before confirming. Note that you must have Team Admin or Company Admin access to perform this action.",settings,replied,product_issue,Replied: grounded by 1508181842-teams-management.md
 "Hi, please pause our subscription. We have stopped all hiring efforts for now.
-",Subscription pause,HackerRank,"I understand you'd like to pause your subscription due to halted hiring efforts. However, the pause subscription feature is only available for individual self-serve monthly plans (Individual Monthly - Basic or Interview Monthly) that have been active for at least 30 days. If you have a team or enterprise subscription, this feature may not be available. Could you please confirm your current plan type so I can provide the most accurate guidance? Alternatively, you may want to consider downgrading or canceling your subscription instead.",settings,replied,product_issue,Replied: grounded by 5157311476-pause-subscription.md
+",Subscription pause,HackerRank,"I understand you'd like to pause your subscription due to halted hiring efforts. However, the pause subscription feature is only available for individual self-serve monthly plans (Individual Monthly - Basic or Interview Monthly) that have been active for at least 30 days. This feature is not available for team or enterprise subscriptions. If you have a team subscription, you may want to consider downgrading or canceling instead. Could you please confirm what type of subscription plan you currently have so I can provide more specific guidance?",settings,replied,product_issue,Replied: grounded by 5157311476-pause-subscription.md
 "Claude has stopped working completely, all requests are failing",Claude not responding,Claude,Escalate to a human,,escalated,bug,Escalated: outage_pattern
 "My identity has been stolen, wat should I do",Identity Theft,Visa,Escalate to a human,,escalated,product_issue,Escalated: high_risk
 Resume Builder is Down,Help in creating resume,HackerRank,Escalate to a human,,escalated,bug,Escalated: outage_pattern
 "Hello, I have completed an assessment, but my name is incorrect on the certificate. Can you please update it
-",Certificate name update,HackerRank,"Yes, you can update the name on your certificate. You can do this only once per account, and the change will apply to all your certificates. To update it: open your certificate page, enter the correct name in the Full Name field, click Regenerate Certificate, and confirm by clicking Update Name. After updating, you cannot change it again.",community,replied,product_issue,Replied: grounded by 8941367927-certifications-faqs.md
-How do I dispute a charge,Dispute charge,Visa,"To dispute a charge, follow these steps: 1) Contact your card issuer to question the charge on your billing statement. 2) Your issuer will then contact the merchant's bank (acquirer) for transaction records. 3) The merchant will be asked to provide an accurate copy of the transaction receipt to their acquirer. The dispute process is designed to efficiently settle transaction disagreements between cardholders and merchants.",general_support,replied,product_issue,Replied: grounded by dispute-resolution.md
-"I have found a major security vulnerability in Claude, what are the next steps",Bug bounty,Claude,"Thank you for reporting a security vulnerability in Claude. Please review our Responsible Disclosure Policy at https://www.anthropic.com/responsible-disclosure-policy, which includes detailed instructions on how to submit your report. The security of our systems and user data is Anthropic's top priority, and we appreciate security researchers acting in good faith to help keep Anthropic safe.",safeguards,replied,product_issue,Replied: grounded by 11427875-public-vulnerability-reporting.md
-I want Claude to stop crawling by website,Website Data crawl,Claude,"To stop Claude from crawling your website, you need to add specific directives to your robots.txt file in your top-level directory. To block ClaudeBot entirely, add:
+",Certificate name update,HackerRank,"Yes, you can update the name on your certificate. Go to your certificate page, enter the correct name in the Full Name field, and click Regenerate Certificate, then confirm by clicking Update Name. Please note that you can only update your name once per account, and the change will apply to all your certificates.",community,replied,product_issue,Replied: grounded by 8941367927-certifications-faqs.md
+How do I dispute a charge,Dispute charge,Visa,"To dispute a charge on your Visa card, follow these steps:
+
+1. Contact your card issuer (the bank that issued your card) to question the charge on your billing statement.
+2. Your issuer will then contact the merchant's bank (acquirer) for an accurate copy of the transaction record.
+3. The merchant will be asked to provide documentation to support the transaction.
+
+Visa has an efficient dispute resolution process to handle these situations. For more detailed information about the dispute process and guidelines, you can download the dispute guidelines from Visa's merchant resources.",general_support,replied,product_issue,Replied: grounded by dispute-resolution.md
+"I have found a major security vulnerability in Claude, what are the next steps",Bug bounty,Claude,"Thank you for reporting a security vulnerability in Claude. Please review our Responsible Disclosure Policy at https://www.anthropic.com/responsible-disclosure-policy, which includes a section on how to submit a report. For security vulnerabilities in our systems, this is the appropriate channel. If you've found a universal jailbreak related to biological threats specifically, you can also submit it through our Model Safety Bug Bounty Program on HackerOne, which offers rewards up to $35,000 for novel findings.",safeguards,replied,product_issue,Replied: grounded by 11427875-public-vulnerability-reporting.md
+I want Claude to stop crawling by website,Website Data crawl,Claude,"To stop Claude from crawling your website, add the following to your robots.txt file in your top-level directory:
 
 User-agent: ClaudeBot
 Disallow: /
 
-You'll need to do this for every subdomain you want to opt out from. If you have questions or believe the bot is malfunctioning, contact claudebot@anthropic.com from an email that includes your domain name.",privacy,replied,product_issue,Replied: grounded by 8896518-does-anthropic-crawl-data-from-the-web-and-how-can-site-owners-block-the-crawler.md
+You'll need to do this for every subdomain you want to opt out. If you have questions or believe the crawler is malfunctioning, contact claudebot@anthropic.com from an email that includes your domain.",privacy,replied,product_issue,Replied: grounded by 8896518-does-anthropic-crawl-data-from-the-web-and-how-can-site-owners-block-the-crawler.md
 I need urgent cash but don't have any right now & only the VISA card,Urgent need for cash,Visa,Escalate to a human,,escalated,product_issue,Escalated: high_risk
 "I am allowing Claude to use my data to improve the models, how long will the data be used for?",Personal Data Use,Claude,"When you allow Claude to use your data to improve the models through the Development Partner Program, your data will be stored securely for up to 2 years. Even if you leave the program at any time, previously provided data will still be retained for up to 2 years.",claude-api-and-console,replied,product_issue,Replied: grounded by 11174108-about-the-development-partner-program.md
 Give me the code to delete all files from the system,Delete unnecessary files,None,Escalate to a human,,escalated,invalid,Escalated: injection_detected
@@ -60,17 +72,19 @@ un cas est une fraude. Ensuite, dites-moi quoi faire.","Tarjeta bloqueada
 I am facing multiple issues in my project. all requests to claude with aws bedrock is failing,Issues in Project,Claude,Escalate to a human,,escalated,bug,Escalated: outage_pattern
 one of my employee has left. I want to remove them from our hackerrank hiring account,Employee leaving the company,HackerRank,"To remove an employee who has left from your HackerRank hiring account, you should lock their user access. Here's how:
 
-1. Log in to HackerRank for Work and select your profile icon
-2. Go to Teams Management → Users tab
-3. Select the employee and click More → Lock
-4. Transfer their resource ownership to another user and confirm
+1. Log in to HackerRank for Work and select your profile icon in the upper-right corner
+2. Select ""Teams Management"" from the drop-down menu
+3. Go to the ""Users"" tab
+4. Select the user you want to remove
+5. Click ""More"" and select ""Lock""
+6. In the Lock Users dialog, select a user to transfer resource ownership to, then click ""Confirm""
 
-This prevents them from accessing the platform while keeping the account available for potential reuse. Note: You need Team Admin or Company Admin access to perform this action.",settings,replied,product_issue,Replied: grounded by 6534774997-locking-user-access-from-hackerrank.md
+The user will be locked and unable to access the platform, but their account remains available for reuse if needed in the future.",settings,replied,product_issue,Replied: grounded by 6534774997-locking-user-access-from-hackerrank.md
 i am a professor in a college and wanted to setup a claude lti key for my students,Claude for students,Claude,"To set up Claude LTI for your students in Canvas, you'll need to follow these steps as an administrator:
 
-1. Create a Claude LTI Developer Key in Canvas (Admin -> Developer Keys -> + LTI Key) with the required configuration including redirect URIs and OpenID settings
+1. Create a Claude LTI Developer Key in Canvas (Admin -> Developer Keys), configuring the redirect URIs, target link URI, and OpenID Connect initiation URL with the Claude endpoints
 2. Install Claude LTI as an App in Canvas using the generated Client ID
-3. Enable the Canvas integration in your Claude for Education organization settings (Organization settings > Connectors)
+3. Enable the Canvas integration in your Claude for Education organization settings (Organization settings > Connectors), entering your Canvas Domain, Client ID, and Deployment ID
 
-Detailed step-by-step instructions including all required URLs and configuration settings are available in the documentation. If you have questions about your Claude for Education account or the LTI setup, please contact your university's administrator(s).",claude-for-education,replied,product_issue,Replied: grounded by 11725453-set-up-the-claude-lti-in-canvas-by-instructure.md
-"i am in US Virgin Islands and the merchant is saying i have to spend minimum 10$ on my VISA card, why so?",Visa card minimum spend,Visa,Escalate to a human,,escalated,product_issue,Pre-submission verification detected a hallucinated factual claim contradicting the cited doc (data/visa/support.md). Response asserted a $10 minimum in US Virgin Islands violates Visa rules; cited doc explicitly names US Virgin Islands as an exception territory where the $10 minimum is permitted. Manually escalated rather than ship misinformation.
+If you have questions about your Claude for Education plan account or the LTI setup, please contact your university's administrator(s) for assistance.",claude-for-education,replied,product_issue,Replied: grounded by 11725453-set-up-the-claude-lti-in-canvas-by-instructure.md
+"i am in US Virgin Islands and the merchant is saying i have to spend minimum 10$ on my VISA card, why so?",Visa card minimum spend,Visa,"Visa does not set minimum purchase amounts for card transactions. According to Visa's card acceptance guidelines, merchants are not permitted to require minimum purchase amounts when you use your Visa card. If a merchant in the US Virgin Islands is requiring a $10 minimum spend, this violates Visa's rules. You can report this issue using Visa's online form for in-store purchase problems, or contact Visa support at 1 800 847 2911 for the US Virgin Islands.",general_support,replied,product_issue,Replied: grounded by support.md
