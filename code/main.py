@@ -111,6 +111,15 @@ def run_pipeline(
         cleaned, flags, top_k_docs, status, request_type, llm_client, budget
     )
 
+    # Post-pre-mortem fix: if Stage 7 returned the escalate template because
+    # grounding failed (refused / low-confidence / hallucinated cite / API
+    # failure), propagate to status. Otherwise we ship rows where
+    # status='replied' AND response='Escalate to a human' — self-contradicting.
+    if response == "Escalate to a human" and status == "replied":
+        status = "escalated"
+        justification = "Escalated: stage_7_grounding_failed"
+        pa = ""
+
     return {
         "issue": redact_secrets(cleaned["Issue"]),
         "subject": redact_secrets(cleaned["Subject"]),

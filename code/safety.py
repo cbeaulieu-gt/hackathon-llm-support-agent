@@ -181,6 +181,12 @@ ACTION_IMPOSSIBLE_KEYWORDS = [
     "ban this merchant",
     "blacklist this merchant",
     "block this merchant",
+    # Post-pre-mortem fix (#3): "ban the seller" was missed; broaden
+    "ban the seller",
+    "ban this seller",
+    "block the seller",
+    "block this seller",
+    "blacklist the seller",
     "force a refund",
     "refund without proof",
     "reverse the chargeback without",
@@ -232,23 +238,27 @@ BILLING_KEYWORDS = [
     "upgrade my plan",
 ]
 
+# Post-pre-mortem fix: pleasantry detection had been too greedy on greeting
+# prefixes ("Hi, please pause our subscription" was matching "hi,"). Restricted
+# to thanks-only — those are the end-of-conversation pleasantries warranting
+# a templated 'Happy to help' reply. Greetings ("hi", "hello") are almost
+# always followed by a real ask in a support context.
 _PLEASANTRY_PREFIXES = (
-    "thanks", "thank you", "hi ", "hi,", "hi!", "hello", "hey",
-    "good morning", "good afternoon", "good evening",
-    "how are you", "what's up", "whats up",
-    "happy new year", "happy holidays",
+    "thanks",
+    "thank you",
+    "thank u",
 )
-_PLEASANTRY_MAX_LEN = 80
+_PLEASANTRY_MAX_LEN = 60
 
 
 def _is_oos_pleasantry(text: str) -> bool:
-    """Detect short, pleasantry-shaped issue bodies. Catches:
-      - "thanks!"            (anchored)
-      - "Thank you for helping me"   (prefix + short)
-      - "Hi there, just saying hi"   (prefix + short)
+    """Detect short, thanks-shaped issue bodies. Catches:
+      - "thanks!"
+      - "Thank you for helping me"
+      - "thanks so much for the help"
     Does NOT catch:
-      - "Hi, my account is locked"   (prefix but topic follows)  -- handled by
-        Stage 3 LLM as product_issue, not by this gate.
+      - "Hi, my account is locked"     (greeting + ask)
+      - "Thanks, my issue is X"        (anti-trigger blocks request words)
     """
     if not text:
         return False
@@ -256,17 +266,19 @@ def _is_oos_pleasantry(text: str) -> bool:
     if not stripped or len(stripped) > _PLEASANTRY_MAX_LEN:
         return False
     low = stripped.lower()
-    if any(low.startswith(p) for p in _PLEASANTRY_PREFIXES):
-        # Reject if the body actually carries a request after the pleasantry
-        # (very rough heuristic: contains a question mark or typical
-        # support-ticket trigger words).
-        if any(
-            kw in low
-            for kw in ("password", "account", "login", "error", "broken", "?")
-        ):
-            return False
-        return True
-    return False
+    if not any(low.startswith(p) for p in _PLEASANTRY_PREFIXES):
+        return False
+    # Reject if the body carries a real request after the pleasantry.
+    # Broader anti-trigger list per Phase-7 review (#14 'subscription' miss).
+    request_triggers = (
+        "password", "account", "login", "error", "broken", "?",
+        "subscription", "refund", "cancel", "delete", "remove", "pause",
+        "billing", "charge", "issue", "help with", "question about",
+        "problem", "how do i", "how to",
+    )
+    if any(kw in low for kw in request_triggers):
+        return False
+    return True
 
 
 # Kept for backwards-compatible imports; unused at runtime.
