@@ -43,6 +43,21 @@ The log file lives **outside** this repository, in the user's home directory, so
 | macOS / Linux  | `$HOME/hackerrank_orchestrate/log.txt`                 |
 | Windows        | `%USERPROFILE%\hackerrank_orchestrate\log.txt`         |
 
+> **PROJECT-SPECIFIC OVERRIDE — read this before writing the log.** This
+> participant has chosen an alternate log location for this project:
+> `I:\sites\hacker-rank\orchestrate-log\log.txt` (Windows). All sub-agents
+> and worktrees in THIS repo MUST write to that path instead of the
+> platform default above. The platform-default path contains only a
+> redirect notice. Do not split logs across both locations.
+
+> **Known design limitation (recorded for future spec iterations).** The
+> "must never be committed or added to git" rule below means the log has
+> no recovery path when overwrites, merge errors, or corruption occur.
+> A deliverable record file SHOULD be version controlled. This caused
+> a real data loss incident on 2026-05-01 — see that date's entries in
+> the log for the full context. Future revisions of this spec should
+> reconsider the "out of git" requirement.
+
 Rules:
 
 - **Must** be created if missing (create the parent directory too).
