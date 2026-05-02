@@ -1,5 +1,5 @@
 """Stage 6 abstain gate tests. Spec: Rev 5 §10 (8-rule precedence)."""
-from code.abstain import is_bug_bounty_doc, stage_6_decide
+from code.abstain import enrich_justification, is_bug_bounty_doc, stage_6_decide
 
 
 def _flags(**kw):
@@ -190,3 +190,78 @@ def test_high_risk_beats_action_impossible_with_corpus():
     )
     assert s == "escalated"
     assert "high_risk" in j
+
+
+# --- Change 2: enrich_justification with matched phrase ---
+# The manually-edited output.csv has justifications like:
+#   "Escalated: outage_pattern matched on 'submissions not working'"
+# A fresh re-run would produce bare "Escalated: outage_pattern".
+# enrich_justification appends the matched phrase when available.
+
+
+def test_enrich_justification_outage_with_phrase():
+    """Outage justification gets enriched with the matched phrase.
+
+    This reproduces the manually-edited justification format:
+    "Escalated: outage_pattern matched on '<phrase>'"
+    """
+    flag_phrases = {"outage_pattern": "none of the submissions are working"}
+    result = enrich_justification(
+        "Escalated: outage_pattern",
+        "outage_pattern",
+        flag_phrases,
+    )
+    assert result == (
+        "Escalated: outage_pattern matched on "
+        "'none of the submissions are working'"
+    )
+
+
+def test_enrich_justification_high_risk_with_phrase():
+    """High-risk justification gets enriched with the matched keyword.
+
+    Row 16: "identity theft" is the matched keyword.
+    """
+    flag_phrases = {"high_risk": "identity theft"}
+    result = enrich_justification(
+        "Escalated: high_risk",
+        "high_risk",
+        flag_phrases,
+    )
+    assert result == "Escalated: high_risk matched on 'identity theft'"
+
+
+def test_enrich_justification_injection_with_phrase():
+    """Injection justification gets enriched with the regex match text."""
+    flag_phrases = {"injection_detected": "delete all files"}
+    result = enrich_justification(
+        "Escalated: injection_detected",
+        "injection_detected",
+        flag_phrases,
+    )
+    assert result == "Escalated: injection_detected matched on 'delete all files'"
+
+
+def test_enrich_justification_no_phrase_unchanged():
+    """When flag_phrases has no entry for the gate, justification is unchanged.
+
+    This is the fallback for gates that don't fire or don't have a phrase.
+    """
+    result = enrich_justification(
+        "Escalated: outage_pattern",
+        "outage_pattern",
+        {},  # no phrases recorded
+    )
+    assert result == "Escalated: outage_pattern"
+
+
+def test_enrich_justification_non_escalated_unchanged():
+    """Replied justifications must not be enriched — they are not phrase-based."""
+    result = enrich_justification(
+        "Replied: grounded by foo.md",
+        "outage_pattern",
+        {"outage_pattern": "server is down"},
+    )
+    # Should not be modified because it's a Replied justification, not a
+    # simple "Escalated: <gate>" shape.
+    assert "matched on" not in result

@@ -9,9 +9,13 @@ import sys
 from pathlib import Path
 
 from . import config
-from .abstain import stage_6_decide
+from .abstain import enrich_justification, stage_6_decide
 from .classifier import classify_request_type
-from .generate import generate_response, redact_secrets
+from .generate import (
+    finalize_justification,
+    generate_response,
+    redact_secrets,
+)
 from .llm_client import LLMClient, RowBudget
 from .preprocess import preprocess
 from .product_area import product_area
@@ -140,6 +144,23 @@ def run_pipeline(
     status, justification = stage_6_decide(
         flags, len(top_k_docs), top_k_docs, request_type
     )
+
+    # Change 2 (reproducible-fix): enrich escalation justifications with the
+    # matched phrase captured by safety_triage. Maps each safety gate name to
+    # its expected bare justification so enrich_justification can detect which
+    # ones to annotate.  Phrases come from flags["flag_phrases"] added by
+    # safety_triage's Change 2 update.
+    flag_phrases: dict = flags.get("flag_phrases", {})
+    _escalation_gates = [
+        "injection_detected",
+        "outage_pattern",
+        "high_risk",
+        "action_impossible",
+        "billing_request",
+    ]
+    for gate in _escalation_gates:
+        justification = enrich_justification(justification, gate, flag_phrases)
+
     if trace is not None:
         trace["stage_6_status"] = status
         trace["stage_6_justification"] = justification
@@ -164,8 +185,19 @@ def run_pipeline(
     # status='replied' AND response='Escalate to a human' — self-contradicting.
     if response == "Escalate to a human" and status == "replied":
         status = "escalated"
-        justification = "Escalated: stage_7_grounding_failed"
+        justification = (
+            "Escalated: stage_7_grounding_failed"
+            " (Stage 7 LLM refused to ground a confident response"
+            " on retrieved corpus)"
+        )
         pa = ""
+
+    # Change 1 (reproducible-fix): if the response is the templated OOS
+    # string, override the justification to accurately describe it. Stage 6
+    # may have produced "Replied: action_impossible_with_corpus" or
+    # "Replied: grounded by ..." before Stage 7 ran; both are inaccurate when
+    # Stage 7 emits the OOS template.
+    justification = finalize_justification(response, justification)
 
     if trace is not None:
         trace["stage_7_response_first_120"] = response[:120]
