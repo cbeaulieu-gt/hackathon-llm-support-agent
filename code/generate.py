@@ -9,11 +9,29 @@ Change B (safety-tuning): when ``justification`` contains
 message so the LLM knows to acknowledge the impossible action and redirect
 to the documented legitimate path, rather than simply refusing or hallucinating
 that it performed the action.
+
+Change 1 (reproducible-fix): ``TEMPLATED_OOS_RESPONSE`` is the canonical
+out-of-scope string. ``finalize_justification`` detects when the response
+equals this template and overrides the justification to a description that
+accurately reflects the response type, making rows 2/3/12 reproducible without
+manual edits.
+
+Change 1 (reproducible-fix): ``TEMPLATED_OOS_JUSTIFICATION`` is the canonical
+justification string for templated OOS responses.
 """
 import re
 
 from .llm_client import LLMClient, RowBudget
 from .prompts import STAGE_7_SYSTEM
+
+# Change 1 (reproducible-fix): canonical templated strings so all callers
+# compare against the exact same value rather than re-spelling the phrase.
+TEMPLATED_OOS_RESPONSE = (
+    "I am sorry, this is out of scope from my capabilities."
+)
+TEMPLATED_OOS_JUSTIFICATION = (
+    "Replied: templated out-of-scope response for invalid request type"
+)
 
 SECRET_PATTERNS = [
     re.compile(r"sk-ant-api03-[A-Za-z0-9_-]+"),
@@ -31,6 +49,31 @@ def redact_secrets(text: str) -> str:
     for p in SECRET_PATTERNS:
         text = p.sub("[REDACTED]", text)
     return text
+
+
+def finalize_justification(response: str, justification: str) -> str:
+    """Override justification when the response is the templated OOS string.
+
+    Stage 6 may produce a justification like "Replied: grounded by foo.md"
+    or "Replied: action_impossible_with_corpus" before Stage 7 runs. When
+    Stage 7 emits the templated OOS response (request_type=invalid), the
+    Stage 6 justification is inaccurate. This function corrects it.
+
+    Change 1 (reproducible-fix): called by main.py after generate_response
+    so rows 2, 3, 12 carry the accurate justification in fresh runs, matching
+    the manually-edited output.csv without requiring post-run edits.
+
+    Args:
+        response: The final response string from generate_response.
+        justification: The Stage 6 justification string.
+
+    Returns:
+        The original justification if the response is not the templated OOS
+        string; otherwise ``TEMPLATED_OOS_JUSTIFICATION``.
+    """
+    if response == TEMPLATED_OOS_RESPONSE:
+        return TEMPLATED_OOS_JUSTIFICATION
+    return justification
 
 
 def _build_user_msg(
@@ -109,7 +152,7 @@ def generate_response(
     if request_type == "invalid":
         if flags.get("oos_pleasantry"):
             return "Happy to help"
-        return "I am sorry, this is out of scope from my capabilities."
+        return TEMPLATED_OOS_RESPONSE
 
     action_ctx = "action_impossible_with_corpus" in justification
     user_msg = _build_user_msg(cleaned, top_k_docs, action_impossible_context=action_ctx)

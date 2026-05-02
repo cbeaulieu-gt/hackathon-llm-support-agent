@@ -289,8 +289,52 @@ OOS_PLEASANTRY = re.compile(
 
 
 def _any_kw(text: str, kws: list[str]) -> bool:
+    """Return True if any keyword in ``kws`` appears in ``text``."""
     low = text.lower()
     return any(kw in low for kw in kws)
+
+
+def _first_kw(text: str, kws: list[str]) -> str:
+    """Return the first keyword from ``kws`` that appears in ``text``.
+
+    Returns an empty string when no keyword matches.  Used by
+    ``safety_triage`` to capture the matched phrase for Change 2
+    (reproducible-fix): enriched justifications include the matched phrase
+    so escalation justifications are traceable without manual edits.
+
+    Args:
+        text: The combined subject + issue text (already lower-cased).
+        kws: List of keyword strings to search for.
+
+    Returns:
+        The first matching keyword, or ``""`` if none match.
+    """
+    low = text.lower()
+    for kw in kws:
+        if kw in low:
+            return kw
+    return ""
+
+
+def _first_pattern_match(text: str, patterns: list) -> str:
+    """Return the first regex match text from ``patterns`` applied to ``text``.
+
+    Each pattern is tried in order; the first match returns
+    ``m.group(0)`` truncated to 80 characters.  Returns ``""`` if no
+    pattern matches.
+
+    Args:
+        text: Combined subject + issue text.
+        patterns: List of compiled ``re.Pattern`` objects.
+
+    Returns:
+        Matched text (up to 80 chars) or ``""`` if no pattern matches.
+    """
+    for p in patterns:
+        m = p.search(text)
+        if m:
+            return m.group(0)[:80]
+    return ""
 
 
 def safety_triage(cleaned: dict, prior_flags: dict) -> dict:
@@ -298,6 +342,20 @@ def safety_triage(cleaned: dict, prior_flags: dict) -> dict:
 
     Reads ``cleaned['Issue_redacted']`` (NOT ``Issue``) per Rev 5.1 §4
     defense-in-depth. Returns a merged flag dict layered over ``prior_flags``.
+
+    Change 2 (reproducible-fix): adds ``flag_phrases`` key — a parallel dict
+    mapping gate name → matched phrase. Boolean falsy (``""`` or absent) means
+    the gate did not fire; a non-empty string is the phrase that triggered it.
+    This enables enriched justifications like:
+        "Escalated: outage_pattern matched on 'submissions not working'"
+    without requiring post-run manual edits.
+
+    Args:
+        cleaned: Pre-processed row dict with Subject/Issue/Issue_redacted keys.
+        prior_flags: Flags dict from Stage 0; merged under returned flags.
+
+    Returns:
+        Merged flag dict including boolean flags and a ``flag_phrases`` sub-dict.
     """
     text = (
         cleaned.get("Subject", "")
@@ -305,11 +363,43 @@ def safety_triage(cleaned: dict, prior_flags: dict) -> dict:
         + cleaned.get("Issue_redacted", cleaned.get("Issue", ""))
     ).strip()
     flags = dict(prior_flags)
-    flags["injection_detected"] = any(p.search(text) for p in INJECTION_PATTERNS)
-    flags["outage_pattern"] = any(p.search(text) for p in OUTAGE_PATTERNS)
-    flags["high_risk"] = _any_kw(text, HIGH_RISK_KEYWORDS)
-    flags["vuln_disclosure_shape"] = _any_kw(text, VULN_DISCLOSURE_KEYWORDS)
-    flags["action_impossible"] = _any_kw(text, ACTION_IMPOSSIBLE_KEYWORDS)
-    flags["billing_request"] = _any_kw(text, BILLING_KEYWORDS)
+
+    # --- boolean flags (unchanged semantics) ---
+    injection_phrase = _first_pattern_match(text, INJECTION_PATTERNS)
+    flags["injection_detected"] = bool(injection_phrase)
+
+    outage_phrase = _first_pattern_match(text, OUTAGE_PATTERNS)
+    flags["outage_pattern"] = bool(outage_phrase)
+
+    high_risk_phrase = _first_kw(text, HIGH_RISK_KEYWORDS)
+    flags["high_risk"] = bool(high_risk_phrase)
+
+    vuln_phrase = _first_kw(text, VULN_DISCLOSURE_KEYWORDS)
+    flags["vuln_disclosure_shape"] = bool(vuln_phrase)
+
+    action_phrase = _first_kw(text, ACTION_IMPOSSIBLE_KEYWORDS)
+    flags["action_impossible"] = bool(action_phrase)
+
+    billing_phrase = _first_kw(text, BILLING_KEYWORDS)
+    flags["billing_request"] = bool(billing_phrase)
+
     flags["oos_pleasantry"] = _is_oos_pleasantry(cleaned.get("Issue", ""))
+
+    # --- Change 2 (Option β): parallel phrase dict ---
+    # Only gates that fired are included; absent key == gate did not fire.
+    flag_phrases: dict[str, str] = {}
+    if injection_phrase:
+        flag_phrases["injection_detected"] = injection_phrase
+    if outage_phrase:
+        flag_phrases["outage_pattern"] = outage_phrase
+    if high_risk_phrase:
+        flag_phrases["high_risk"] = high_risk_phrase
+    if vuln_phrase:
+        flag_phrases["vuln_disclosure_shape"] = vuln_phrase
+    if action_phrase:
+        flag_phrases["action_impossible"] = action_phrase
+    if billing_phrase:
+        flag_phrases["billing_request"] = billing_phrase
+    flags["flag_phrases"] = flag_phrases
+
     return flags

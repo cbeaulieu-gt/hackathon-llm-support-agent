@@ -17,7 +17,47 @@ Critical guard: ``injection_detected`` still wins unconditionally (rule 1),
 and ``high_risk`` still wins (rule 2) before this carve-out is reached, so
 rows 24 (delete-all-files injection) and any fraud+action-impossible combo
 are not affected.
+
+Change 2 (reproducible-fix): ``enrich_justification`` appends the matched
+phrase from ``flag_phrases`` to escalation justifications of the form
+"Escalated: <gate_name>", making the output reproducible from code rather
+than requiring post-run manual edits.
 """
+
+
+def enrich_justification(
+    justification: str,
+    gate_name: str,
+    flag_phrases: dict,
+) -> str:
+    """Append matched phrase to a bare escalation justification.
+
+    Change 2 (reproducible-fix): called by ``main.py`` after
+    ``stage_6_decide`` to produce enriched justifications like:
+        "Escalated: outage_pattern matched on 'submissions not working'"
+
+    Only modifies justifications whose exact text is
+    ``"Escalated: <gate_name>"`` — i.e. bare gate escalations without an
+    existing phrase.  Replied-style or already-enriched justifications are
+    returned unchanged.
+
+    Args:
+        justification: The raw justification string from ``stage_6_decide``.
+        gate_name: The gate key to look up in ``flag_phrases``.
+        flag_phrases: The ``flag_phrases`` dict from ``safety_triage``.
+
+    Returns:
+        The justification with ``matched on '<phrase>'`` appended, or the
+        original justification if no phrase is available or the pattern
+        does not match the expected shape.
+    """
+    expected_prefix = f"Escalated: {gate_name}"
+    if justification != expected_prefix:
+        return justification
+    phrase = flag_phrases.get(gate_name, "")
+    if not phrase:
+        return justification
+    return f"{justification} matched on {phrase!r}"
 
 
 def is_bug_bounty_doc(path: str) -> bool:

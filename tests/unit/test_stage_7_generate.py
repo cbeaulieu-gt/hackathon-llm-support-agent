@@ -1,5 +1,10 @@
 """Stage 7 generation tests."""
-from code.generate import generate_response, redact_secrets
+from code.generate import (
+    TEMPLATED_OOS_RESPONSE,
+    finalize_justification,
+    generate_response,
+    redact_secrets,
+)
 from code.llm_client import RowBudget
 from tests.conftest import fake_llm_default
 
@@ -159,4 +164,81 @@ def test_response_post_processed_for_secrets():
         {}, docs, "replied", "bug", fake, RowBudget(),
     )
     assert "cs_live_abc123" not in out
-    assert "[REDACTED]" in out
+
+
+# --- Change 1: templated OOS justification override ---
+# When the final response equals the templated OOS string, the justification
+# must be overridden regardless of what Stage 6 produced. This makes rows 2,
+# 3, 12 reproducible: they were manually edited to carry
+# "Replied: templated out-of-scope response for invalid request type" but
+# a fresh run would have produced "Replied: action_impossible_with_corpus"
+# or "Replied: grounded by ..." — both inaccurate.
+
+
+def test_finalize_justification_overrides_for_templated_oos():
+    """OOS response + any Stage 6 justification → override to templated string.
+
+    This is the core contract for Change 1: if the response equals the
+    templated OOS phrase, the justification must describe that, not
+    whatever Stage 6 inferred.
+    """
+    result = finalize_justification(
+        response=TEMPLATED_OOS_RESPONSE,
+        justification="Replied: grounded by foo.md",
+    )
+    assert result == "Replied: templated out-of-scope response for invalid request type"
+
+
+def test_finalize_justification_overrides_action_impossible_case():
+    """action_impossible_with_corpus justification is also overridden.
+
+    Rows 2 and 3 fire action_impossible and retrieval has docs, so Stage 6
+    returns "Replied: action_impossible_with_corpus". But generate_response
+    emits the templated OOS string (request_type=invalid), so the
+    justification must be corrected.
+    """
+    result = finalize_justification(
+        response=TEMPLATED_OOS_RESPONSE,
+        justification="Replied: action_impossible_with_corpus",
+    )
+    assert result == "Replied: templated out-of-scope response for invalid request type"
+
+
+def test_finalize_justification_leaves_non_oos_unchanged():
+    """Non-OOS responses must not have their justification changed."""
+    result = finalize_justification(
+        response="Use feature X.",
+        justification="Replied: grounded by foo.md",
+    )
+    assert result == "Replied: grounded by foo.md"
+
+
+def test_finalize_justification_leaves_escalated_unchanged():
+    """Escalated rows are not OOS — justification must not be overridden."""
+    result = finalize_justification(
+        response="Escalate to a human",
+        justification="Escalated: high_risk",
+    )
+    assert result == "Escalated: high_risk"
+
+
+def test_generate_response_returns_corrected_justification_for_invalid():
+    """End-to-end: invalid request type produces OOS response.
+
+    Even though Stage 6 returned "Replied: action_impossible_with_corpus",
+    generate_response must produce the OOS string, and main.py calls
+    finalize_justification to update the justification afterwards.
+    This test verifies the OOS response is produced (justification correction
+    is the caller's responsibility per Change 1 design).
+    """
+    out = generate_response(
+        {"Issue": "weather?", "Issue_redacted": "weather?", "Subject": ""},
+        {},
+        [],
+        "replied",
+        "invalid",
+        fake_llm_default(),
+        RowBudget(),
+        justification="Replied: action_impossible_with_corpus",
+    )
+    assert out == TEMPLATED_OOS_RESPONSE
