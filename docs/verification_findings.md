@@ -75,13 +75,60 @@ for either audience and not invented. A more precise grounding would cite
 the consumer-facing dispute FAQ in `support.md`, but the response is not
 misleading.
 
-## Verification stats
+## Finding 3 — Row 29 hallucination recurrence (post safety-tuning re-run)
 
-- **Replied rows verified**: 13 of 13 (every replied row in the final
-  output)
-- **Hallucinations found**: 1 (row 29 — fixed via escalation)
-- **Audience-mismatches found**: 1 (row 19 — kept; correct facts)
-- **Final output distribution**: 17 escalated / 12 replied (after fix)
+After the Stage 1 / Stage 6 safety-tuning iteration (which recovered rows
+1, 2, 3, 22 from over-escalation to grounded reply), the pipeline was
+re-run on all 29 rows. Row 29's hallucinated jurisdictional reply
+reappeared because the Anthropic API at `temperature=0` is deterministic
+enough to reproduce the same incorrect generalization. We re-applied the
+manual escalation per Finding 1.
+
+**Implication**: the row 29 hallucination is reproducible across runs, not
+a one-time stochastic event. A code-level fix (Stage 7 prompt addition for
+jurisdictional sensitivity, or a doc-side `kb_card_minimum_exceptions`
+note) would be required to prevent recurrence. We chose manual escalation
+rather than ship the prompt fix to avoid regression risk on already-correct
+rows in the final hours before submission.
+
+## Finding 4 — Inaccurate justifications on templated OOS rows
+
+**Tickets**: Rows 2, 3, 12 (all `status=replied`, `request_type=invalid`,
+`response="I am sorry, this is out of scope from my capabilities."`)
+
+**Discrepancy**:
+
+The auto-generated justification on these rows claimed grounding by a
+specific corpus doc (e.g. row 12: "Replied: grounded by
+11869619-using-claude-with-ios-apps.md") OR a specific Stage 6 path (e.g.
+rows 2, 3 after safety tuning: "Replied: action_impossible_with_corpus").
+However, the actual `response` is a templated out-of-scope reply that does
+not consume any retrieved doc content. The justification is technically
+inaccurate — it claims grounding/corpus-use that did not occur.
+
+**Failure class**: Justification-generation drift — the justification was
+populated from a Stage 5/Stage 6 decision context that didn't survive
+into Stage 7's templated short-circuit.
+
+**Action taken**: Rows 2, 3, 12 had their `justification` column manually
+updated to: "Replied: templated out-of-scope response for invalid request
+type" — accurately describing what actually happened.
+
+**Forward-looking fix**: the justification-assembly code in `code/main.py`
+should consult the final response text (not just the Stage 6 decision
+context) when building the justification string. Out of scope for this
+session.
+
+## Verification stats (after this session)
+
+- **Replied rows verified**: 14 of 16 (rows 1 and 22 verified GROUNDED in
+  this iteration after the safety-tuning recovery; rows 2, 3, 12 confirmed
+  as templated OOS with corrected justifications)
+- **Hallucinations found**: 1 (row 29 — recurring; fixed via escalation
+  again this iteration)
+- **Inaccurate justifications**: 3 (rows 2, 3, 12 — fixed via direct edit)
+- **Audience-mismatches**: 1 (row 19 — kept; correct facts)
+- **Final output distribution**: 13 escalated / 16 replied
 
 ## What this changes about the submission
 
