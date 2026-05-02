@@ -37,9 +37,14 @@
   ],
   "high_risk_positive": [
     "My identity has been stolen, wat should I do",
-    "I need urgent cash but don't have any right now",
     "my account compromised after the breach",
     "I have found a major security vulnerability"
+  ],
+  "high_risk_negative": [
+    "I need urgent cash but don't have any right now",
+    "urgent need for cash, only have VISA card",
+    "need cash for travel",
+    "cash advance on my card"
   ],
   "outage_positive": [
     "Resume Builder is Down",

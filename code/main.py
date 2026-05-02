@@ -151,9 +151,11 @@ def run_pipeline(
     if status == "escalated" or flags.get("oos_pleasantry"):
         pa = ""
 
-    # Stage 7
+    # Stage 7 — pass justification so generate_response can detect the
+    # action_impossible_with_corpus carve-out and inject the framing hint.
     response = generate_response(
-        cleaned, flags, top_k_docs, status, request_type, llm_client, budget
+        cleaned, flags, top_k_docs, status, request_type,
+        llm_client, budget, justification=justification,
     )
 
     # Post-pre-mortem fix: if Stage 7 returned the escalate template because

@@ -1,11 +1,16 @@
 """Stage 1 — Safety / Adversarial Triage.
 
 Patterns from docs/PLAN.md Rev 4 §1 (corrected by Rev 5 §9 + Rev 5.1 §1) +
-Rev 5 §4 BILLING (Rev 5.1 §2 extension) + Rev 5.1 §3 OUTAGE.
+Rev 5 §4 BILLING (Rev 5.1 §2 extension) + Rev 5.1 §3 OUTAGE +
+safety-tuning branch §A (financial-duress phrases removed from HIGH_RISK).
 
-All patterns verified empirically against the 29-row test set + 47+13
-positive/negative assertions before commit (per the appendix verification
-tables in PLAN.md).
+Change A (safety-tuning): removed "urgent cash" / "need cash" / "cash
+advance" cluster from HIGH_RISK_KEYWORDS.  These phrases fire on row 22
+("Urgent need for cash"), a Visa travel-support question grounded in the
+GCAS corpus.  Urgency alone without a fraud co-signal ("stolen", "fraudulent",
+"compromised", "phishing") is not a high-risk indicator.  Explicit fraud /
+identity-theft phrases ("stolen account", "identity theft", "fraudulent
+charge", etc.) remain and still catch row 16.
 """
 import re
 
@@ -129,13 +134,6 @@ HIGH_RISK_KEYWORDS = [
     "scammed",
     "phishing",
     "phished",
-    # urgent-cash / financial duress (Rev 4: covers #22)
-    "urgent cash",
-    "urgent need for cash",
-    "need cash",
-    "need money",
-    "send me cash",
-    "cash advance",
     # vulnerability disclosure
     "security vulnerability",
     "security disclosure",

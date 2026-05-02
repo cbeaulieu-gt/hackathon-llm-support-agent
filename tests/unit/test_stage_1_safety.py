@@ -57,6 +57,15 @@ def test_high_risk_positive(text):
     assert any(kw in low for kw in HIGH_RISK_KEYWORDS), f"missed: {text!r}"
 
 
+@pytest.mark.parametrize("text", FIX["high_risk_negative"])
+def test_high_risk_negative(text):
+    """Financial-urgency phrases without fraud context must not fire high_risk."""
+    low = text.lower()
+    assert not any(kw in low for kw in HIGH_RISK_KEYWORDS), (
+        f"false-positive on: {text!r}"
+    )
+
+
 @pytest.mark.parametrize("text", FIX["action_impossible_positive"])
 def test_action_impossible_positive(text):
     low = text.lower()
@@ -125,3 +134,47 @@ def test_triage_billing_request_flag():
     }
     flags = safety_triage(cleaned, {})
     assert flags["billing_request"] is True
+
+
+# --- Change A: financial-duress phrases must NOT fire high_risk ---
+# Row 22 "Urgent need for cash" is a Visa travel-support question.
+# Escalating it as high_risk was a false-positive. The corpus has GCAS /
+# travel-support content that can ground a reply.  "urgent" + "cash" alone
+# carry no fraud signal; true fraud cases use explicit language ("stolen",
+# "fraudulent", "compromised").
+
+
+def test_urgent_cash_does_not_fire_high_risk():
+    """Row 22: 'urgent need for cash' must not be flagged as high_risk.
+
+    Financial urgency without fraud context is a travel-support question,
+    not an account-compromise or fraud event.
+    """
+    cleaned = {
+        "Issue": (
+            "I need urgent cash but don't have any right now "
+            "& only the VISA card"
+        ),
+        "Issue_redacted": (
+            "I need urgent cash but don't have any right now "
+            "& only the VISA card"
+        ),
+        "Subject": "Urgent need for cash",
+    }
+    flags = safety_triage(cleaned, {})
+    assert flags["high_risk"] is False, (
+        "Row-22-style 'urgent cash' should not fire high_risk"
+    )
+
+
+def test_identity_theft_still_fires_high_risk():
+    """Row 16: explicit fraud/identity language must still escalate."""
+    cleaned = {
+        "Issue": "My identity has been stolen, wat should I do",
+        "Issue_redacted": "My identity has been stolen, wat should I do",
+        "Subject": "Identity Theft",
+    }
+    flags = safety_triage(cleaned, {})
+    assert flags["high_risk"] is True, (
+        "Row-16-style identity-theft must still fire high_risk"
+    )
