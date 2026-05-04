@@ -1,134 +1,71 @@
-# HackerRank Orchestrate
+# hackathon-llm-support-agent
 
-Starter repository for the **HackerRank Orchestrate** 24-hour hackathon (May 1–2, 2026).
+Multi-stage support-ticket triage agent built for the May 2026 HackerRank Orchestrate hackathon.
 
-Build a terminal-based AI agent that triages real support tickets across three product ecosystems; **HackerRank**, **Claude**, and **Visa** — using only the support corpus shipped in this repo.
+## Context
 
-Read [`problem_statement.md`](./problem_statement.md) for the full task spec, input/output schema, and allowed values, and [`evalutation_criteria.md`](./evalutation_criteria.md) for how submissions are scored.
+This was my submission for the 24-hour HackerRank Orchestrate challenge (May 1–2, 2026). The problem: build an agent that triages support tickets across three product corpora — HackerRank, Claude, and Visa — using only the provided support documentation, no external knowledge. The repo here is the work I built; the hackathon scaffold has been removed.
 
----
+Full problem spec: [`docs/problem_statement.md`](./docs/problem_statement.md).
 
-## Contents
+## What it does
 
-1. [Repository layout](#repository-layout)
-2. [What you need to build](#what-you-need-to-build)
-3. [Where your code goes](#where-your-code-goes)
-4. [Quickstart](#quickstart)
-5. [Chat transcript logging](#chat-transcript-logging)
-6. [Submission](#submission)
-7. [Judge interview](#judge-interview)
-8. [Evaluation criteria](#evaluation-criteria)
+Reads `support_tickets/support_tickets.csv` (29 rows) and writes `support_tickets/output.csv` with five columns per row:
 
----
+| Column | Values |
+|---|---|
+| `status` | `replied`, `escalated` |
+| `product_area` | most relevant support category / domain area |
+| `response` | user-facing answer grounded in the corpus |
+| `justification` | concise explanation of the routing/answering decision |
+| `request_type` | `product_issue`, `feature_request`, `bug`, `invalid` |
 
-## Repository layout
+## Architecture
+
+Eight stages: preprocessing (deterministic), safety triage (deterministic regex + keywords), domain routing (1 LLM call, only when `Company=None`), request-type classification (1 LLM call), BM25 retrieval (deterministic), product-area assignment (deterministic alias map), abstain gate (deterministic, 8-rule precedence), and response generation (≤1 LLM call with grounded JSON output).
+
+LLM calls are limited to stages 2, 3, and 7 — everything else is byte-stable across runs. Per-row LLM budget is 5 attempts shared across those three stages.
+
+Full stage table, test instructions, and output schema: [`code/README.md`](./code/README.md).
+
+## Engineering decisions worth calling out
+
+**Determinism first.** Stages 0/1/4/5/6 are byte-stable (sorted file iteration, regex normalization, deterministic alias map). Stages 2/3/7 run at `temperature=0`. Cost is ~$0.20 per full 29-row run on Sonnet 4.5; worst-case wall clock is ~3 minutes.
+
+**Reproducibility over cosmetic correction.** 28 of 29 rows are produced byte-for-byte by `python -m code.main`. Row 29 ships with a documented hallucination: the Stage 7 LLM confidently asserts that a US Virgin Islands merchant requiring a $10 minimum "violates Visa's rules" — the cited doc (line 202 of `data/visa/support.md`) explicitly names US Virgin Islands as an exception territory where the $10 minimum is permitted. I tried a jurisdictional-sensitivity prompt addition; it prevented the hallucination on row 29 but caused row 5 to escalate defensively. Net regressive. I kept the reproducible-but-wrong output and disclosed it rather than ship a prompt fix that broke other rows. Full disclosure and scoring trade-off analysis: [`docs/verification_findings.md`](./docs/verification_findings.md).
+
+**Explicit abstain gate with precedence order.** The 8-rule gate fires in fixed order: injection → high_risk → outage → action_impossible → billing → routing-failed → request_type-failed → no-retrieval. Escalation is the architecturally-correct fallback when grounding fails — the gate makes that explicit rather than letting the response-generation stage decide.
+
+**Tests written before code.** 145 unit tests across all 8 stages plus 7 end-to-end propagation tests on a fixture corpus. Tests were written per the TDD workflow documented in `docs/PLAN.md` before the stages were implemented. See [`code/README.md`](./code/README.md) for the test invocation.
+
+## Results
+
+12 escalated / 17 replied on the 29-row test set. Of the 17 replied rows: 14 verified grounded against the cited corpus document, 3 are templated out-of-scope responses (request type `invalid`), 1 known hallucination (row 29, disclosed above).
+
+## Run it
+
+```bash
+python -m venv .venv
+./.venv/Scripts/python.exe -m pip install -r code/requirements.txt
+cp .env.example .env   # add ANTHROPIC_API_KEY
+./.venv/Scripts/python.exe -m code.main
+```
+
+See [`code/README.md`](./code/README.md) for the full invocation, sample validation, and test commands.
+
+## Repo layout
 
 ```
 .
-├── AGENTS.md                       # Rules for AI coding tools + transcript logging
-├── problem_statement.md            # Full task description and I/O schema
-├── README.md                       # You are here
-├── code/                           # ← Build your agent here
-│   └── main.py                     #   Entry point (rename/extend as you like)
-├── data/                           # Local-only support corpus (no network needed)
-│   ├── hackerrank/                 #   HackerRank help center
-│   ├── claude/                     #   Claude Help Center export
-│   └── visa/                       #   Visa consumer + small-business support
-└── support_tickets/
-    ├── sample_support_tickets.csv  # Inputs + expected outputs (for development)
-    ├── support_tickets.csv         # Inputs only (run your agent on these)
-    └── output.csv                  # Write your agent's predictions here
+├── code/              # Agent implementation (8-stage pipeline)
+├── data/              # Support corpora (HackerRank, Claude, Visa)
+├── docs/              # Design rationale, plan, verification findings
+└── support_tickets/   # Input CSV, sample CSV, output CSV
 ```
 
----
+## Further reading
 
-## What you need to build
-
-A terminal-based agent that, for each row in `support_tickets/support_tickets.csv`, produces:
-
-| Column         | Allowed values                                          |
-| -------------- | ------------------------------------------------------- |
-| `status`       | `replied`, `escalated`                                  |
-| `product_area` | most relevant support category / domain area            |
-| `response`     | user-facing answer grounded in the provided corpus      |
-| `justification`| concise explanation of the routing/answering decision   |
-| `request_type` | `product_issue`, `feature_request`, `bug`, `invalid`    |
-
-Hard requirements (from `problem_statement.md`):
-
-- Must be **terminal-based**.
-- Must use **only the provided support corpus** (no live web calls for ground-truth answers).
-- Must **escalate** high-risk, sensitive, or unsupported cases instead of guessing.
-- Must avoid hallucinated policies or unsupported claims.
-
-Beyond that you are free to bring your own approach — RAG, vector DBs, tool use, structured output, agent frameworks, classical ML, or anything else.
-
----
-
-## Where your code goes
-
-All of your work belongs in [`code/`](./code/). The repo ships with an empty `code/main.py` you can grow into your full agent — add more modules (`agent.py`, `retriever.py`, `classifier.py`, etc.) next to it as needed.
-
-Conventions:
-
-- Put a **README inside `code/`** describing how to install dependencies and run your agent.
-- Read secrets **from environment variables only** (`OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, …). Copy `.env.example` → `.env` (already gitignored) if you keep one. **Never hardcode keys.**
-- Be **deterministic** where possible. Seed any random sampling.
-- Write responses to `support_tickets/output.csv`.
-
----
-
-## Quickstart
-
-Clone this repository:
-
-```bash
-git clone git@github.com:interviewstreet/hackerrank-orchestrate-may26.git
-cd hackerrank-orchestrate-may26
-```
-
-You are free to use any language or runtime. We recommend **Python**, **JavaScript**, or **TypeScript**.
-
----
-
-## Chat transcript logging
-
-This repo ships with an `AGENTS.md` that any modern AI coding tool (Cursor, Claude Code, Codex, Gemini CLI, Copilot, etc.) will read. It instructs the tool to append every conversation turn to a single shared log file:
-
-| Platform       | Path                                              |
-| -------------- | ------------------------------------------------- |
-| macOS / Linux  | `$HOME/hackerrank_orchestrate/log.txt`            |
-| Windows        | `%USERPROFILE%\hackerrank_orchestrate\log.txt`    |
-
-You don't need to do anything to enable it — just use your AI tool normally. You'll upload this `log.txt` as your chat transcript at submission time.
-
----
-
-## Submission
-
-Submit on the HackerRank Community Platform:
-<https://www.hackerrank.com/contests/hackerrank-orchestrate-may26/challenges/support-agent/submission>
-
-You will upload **three** files:
-
-1. **Code zip** — zip your `code/` directory and upload it. Exclude virtualenvs, `node_modules`, build artifacts, the `data/` corpus, and the `support_tickets/` CSVs.
-2. **Predictions CSV** — your agent's output for `support_tickets/support_tickets.csv` (i.e. the populated `output.csv`).
-3. **Chat transcript** — the `log.txt` from the path in [Chat transcript logging](#chat-transcript-logging).
-
----
-
-## Judge interview
-
-After a successful submission, your AI Judge interview will happen within a few hours after the hackathon ends. It will stay open for the next 4 hours. 
-
-The AI Judge will have access to your submission and may ask about your approach, decisions, and how you used AI while building your solution. The interview will be 30 minutes long, and keeping your camera on is mandatory.
-
-Results will be announced on May 15, 2026
-
----
-
-## Evaluation criteria
-
-Submissions are scored across four dimensions: agent design (your `code/`), the AI Judge interview, output accuracy on `support_tickets/output.csv`, and AI fluency from your chat transcript.
-
-See [`evalutation_criteria.md`](./evalutation_criteria.md) for the full rubric.
+- [`code/README.md`](./code/README.md) — architecture table, run commands, output schema, test invocation, cost
+- [`docs/PLAN.md`](./docs/PLAN.md) — 1598-line design rationale (Rev 3/4/5/5.1): per-stage failure modes, regex/keyword sets, testing methodology, adversarial review rounds
+- [`docs/verification_findings.md`](./docs/verification_findings.md) — pre-submission verification pass: hallucination disclosure, reproducibility refit, scoring trade-offs
+- [`docs/problem_statement.md`](./docs/problem_statement.md) — full problem spec, input/output schema, allowed values
