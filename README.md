@@ -2,6 +2,8 @@
 
 Multi-stage support-ticket triage agent built for the May 2026 HackerRank Orchestrate hackathon.
 
+**Result: 65th place out of 12,885 participants (1,349 submissions)**
+
 ## Context
 
 This was my submission for the 24-hour HackerRank Orchestrate challenge (May 1–2, 2026). The problem: build an agent that triages support tickets across three product corpora — HackerRank, Claude, and Visa — using only the provided support documentation, no external knowledge. The repo here is the work I built; the hackathon scaffold has been removed.
