@@ -2,7 +2,7 @@
 
 Multi-stage support-ticket triage agent built for the May 2026 HackerRank Orchestrate hackathon.
 
-**Result: 65th place out of 12,885 participants (1,349 submissions)**
+⭐ **Result: 65th place out of 12,885 participants (1,349 submissions)**
 
 ## Context
 
